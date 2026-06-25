@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Kirchhoff" />
+  <title>Kirchhoff · Gauss-Jordan</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Tokens ─────────────────────────────────────── */
+    :root {
+      --bg:         #0D1117;
+      --surface:    #161B22;
+      --surface2:   #1C2333;
+      --border:     #30363D;
+      --accent:     #00C896;
+      --accent-dim: #00C89622;
+      --accent-glow:#00C89644;
+      --text:       #E6EDF3;
+      --text-muted: #7D8590;
+      --red:        #FF6B6B;
+      --yellow:     #F0C040;
+      --mono:       'JetBrains Mono', monospace;
+      --sans:       'Inter', sans-serif;
+      --radius:     12px;
+      --radius-sm:  8px;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    /* ── Reset ──────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      padding-bottom: calc(24px + var(--safe-bottom));
+      overscroll-behavior: none;
+    }
+
+    /* ── Header ─────────────────────────────────────── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .logo {
+      width: 32px; height: 32px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--bg);
+      flex-shrink: 0;
+    }
+    .header-text h1 {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+    }
+    .header-text p {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+    }
+
+    /* ── Main container ─────────────────────────────── */
+    main { padding: 20px 16px; max-width: 480px; margin: 0 auto; }
+
+    /* ── Section label ──────────────────────────────── */
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    /* ── Size selector ──────────────────────────────── */
+    .size-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    .size-btn {
+      flex: 1;
+      padding: 10px 0;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .size-btn.active {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    /* ── Variable names ─────────────────────────────── */
+    .var-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 20px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+    .var-input-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .var-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    .var-input {
+      width: 54px;
+      padding: 7px 6px;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 12px;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .var-input:focus { border-color: var(--accent); }
+
+    /* ── Matrix grid ────────────────────────────────── */
+    .matrix-wrap {
+      margin-bottom: 24px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .matrix-grid {
+      display: inline-grid;
+      gap: 6px;
+      min-width: 100%;
+    }
+    .matrix-row {
+      display: contents;
+    }
+    .cell-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .cell-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    .cell {
+      width: 100%;
+      min-width: 52px;
+      padding: 10px 6px;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 14px;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+      -webkit-appearance: none;
+    }
+    .cell:focus {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+    .cell.b-col {
+      border-color: #30363D;
+      background: var(--surface2);
+      color: var(--yellow);
+    }
+    .cell.b-col:focus {
+      border-color: var(--yellow);
+      background: #F0C04011;
+    }
+    .sep-col {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 18px;
+      padding: 0 2px;
+      align-self: center;
+    }
+
+    /* ── Example button ─────────────────────────────── */
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    .btn {
+      flex: 1;
+      padding: 14px;
+      border-radius: var(--radius);
+      border: none;
+      font-family: var(--sans);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg);
+    }
+    .btn-primary:active { filter: brightness(0.88); }
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text-muted);
+      border: 1.5px solid var(--border);
+      font-size: 13px;
+    }
+    .btn-secondary:active { background: var(--surface); }
+
+    /* ── Loading ────────────────────────────────────── */
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 32px 0;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+    .loading.visible { display: block; }
+    .spinner {
+      width: 28px; height: 28px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error ──────────────────────────────────────── */
+    .error-box {
+      display: none;
+      background: #FF6B6B11;
+      border: 1.5px solid var(--red);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      color: var(--red);
+      font-size: 13px;
+      font-family: var(--mono);
+      margin-bottom: 20px;
+    }
+    .error-box.visible { display: block; }
+
+    /* ── Results ────────────────────────────────────── */
+    #results {
+      display: none;
+      animation: slideUp 0.3s ease;
+    }
+    #results.visible { display: block; }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Solution cards ─────────────────────────────── */
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .result-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: var(--mono);
+    }
+    .badge-ok  { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent); }
+    .badge-err { background: #FF6B6B11; color: var(--red); border: 1px solid var(--red); }
+
+    .solutions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    .sol-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+    .sol-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent);
+    }
+    .sol-card .var-name {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      margin-bottom: 6px;
+    }
+    .sol-card .frac {
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 4px;
+      word-break: break-all;
+    }
+    .sol-card .dec {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* ── Steps ──────────────────────────────────────── */
+    .steps-toggle {
+      width: 100%;
+      padding: 13px 16px;
+      border-radius: var(--radius);
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      font-family: var(--sans);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      -webkit-tap-highlight-color: transparent;
+      margin-bottom: 12px;
+    }
+    .steps-toggle .chevron {
+      transition: transform 0.2s;
+      font-size: 12px;
+    }
+    .steps-toggle.open .chevron { transform: rotate(180deg); }
+
+    .steps-list { display: none; }
+    .steps-list.open { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+
+    .step-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .step-head {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .step-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .step-op {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+    }
+    .step-matrix {
+      padding: 12px 14px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .step-matrix table {
+      border-collapse: collapse;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    .step-matrix td {
+      padding: 3px 8px;
+      text-align: right;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .step-matrix td.sep { color: var(--border); padding: 3px 4px; }
+    .step-matrix td.b-val { color: var(--yellow); }
+
+    /* ── Footer ─────────────────────────────────────── */
+    .footer-note {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      margin-top: 32px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">KJ</div>
+  <div class="header-text">
+    <h1>Kirchhoff · Gauss-Jordan</h1>
+    <p>Solver de mallas con fracciones exactas</p>
+  </div>
+</header>
+
+<main>
+
+  <!-- Tamaño del sistema -->
+  <p class="section-label">Tamaño del sistema</p>
+  <div class="size-row" id="sizeRow">
+    <button class="size-btn" data-n="2">2×2</button>
+    <button class="size-btn active" data-n="3">3×3</button>
+    <button class="size-btn" data-n="4">4×4</button>
+    <button class="size-btn" data-n="5">5×5</button>
+  </div>
+
+  <!-- Nombres de variables -->
+  <p class="section-label">Variables (corrientes de malla)</p>
+  <div class="var-row" id="varRow"></div>
+
+  <!-- Matriz aumentada -->
+  <p class="section-label">Matriz aumentada [A | b]</p>
+  <div class="matrix-wrap">
+    <div class="matrix-grid" id="matrixGrid"></div>
+  </div>
+
+  <!-- Botones -->
+  <div class="btn-row">
+    <button class="btn btn-secondary" id="btnExample">Ejemplo</button>
+    <button class="btn btn-primary" id="btnSolve">Resolver →</button>
+  </div>
+
+  <!-- Error -->
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    Calculando...
+  </div>
+
+  <!-- Resultados -->
+  <div id="results">
+
+    <div class="result-header">
+      <span class="result-badge badge-ok" id="resultBadge"></span>
+    </div>
+
+    <p class="section-label">Solución</p>
+    <div class="solutions" id="solutionCards"></div>
+
+    <button class="steps-toggle" id="stepsToggle">
+      <span>Ver desarrollo paso a paso</span>
+      <span class="chevron">▼</span>
+    </button>
+    <div class="steps-list" id="stepsList"></div>
+
+  </div>
+
+  <p class="footer-note">Acepta enteros, fracciones (1/2) y decimales</p>
+
+</main>
+
+<script>
+// ── Estado ───────────────────────────────────────────────
+let N = 3;
+let varNames = [];
+
+const EXAMPLES = {
+  2: { vars: ['I₁','I₂'],
+       matrix: [['2','1','5'],['1','-1','1']] },
+  3: { vars: ['I₁','I₂','I₃'],
+       matrix: [['2','1','-1','8'],['-3','-1','2','-11'],['-2','1','2','-3']] },
+  4: { vars: ['I₁','I₂','I₃','I₄'],
+       matrix: [['10','-4','1','0','-5'],['-4','9','0','-3','23'],['1','0','5','2','5'],['0','-3','2','6','-3']] },
+  5: { vars: ['I₁','I₂','I₃','I₄','I₅'],
+       matrix: [['1','2','0','1','3','15'],['0','1','1','2','0','7'],['3','0','1','0','2','11'],['1','1','1','1','1','5'],['2','3','0','1','1','10']] },
+};
+
+// ── Helpers ──────────────────────────────────────────────
+function $(id) { return document.getElementById(id); }
+
+function buildVarRow() {
+  const row = $('varRow');
+  row.innerHTML = '';
+  varNames = [];
+  for (let i = 0; i < N; i++) {
+    const defaultName = `I${subscript(i+1)}`;
+    varNames.push(defaultName);
+    const wrap = document.createElement('div');
+    wrap.className = 'var-input-wrap';
+    wrap.innerHTML = `
+      <span class="var-label">var ${i+1}</span>
+      <input class="var-input" id="var${i}" value="${defaultName}" maxlength="6" autocomplete="off" autocorrect="off" spellcheck="false" />
+    `;
+    row.appendChild(wrap);
+    wrap.querySelector('input').addEventListener('input', e => {
+      varNames[i] = e.target.value || defaultName;
+      updateCellLabels();
+    });
+  }
+}
+
+function subscript(n) {
+  const subs = ['₀','₁','₂','₃','₄','₅','₆','₇','₈','₉'];
+  return String(n).split('').map(d => subs[+d]).join('');
+}
+
+function updateCellLabels() {
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j <= N; j++) {
+      const lbl = document.getElementById(`lbl_${i}_${j}`);
+      if (!lbl) continue;
+      if (j === N) lbl.textContent = `b${subscript(i+1)}`;
+      else lbl.textContent = `${varNames[j] || ('x'+(j+1))}`;
+    }
+  }
+}
+
+function buildMatrix(prefill = null) {
+  const grid = $('matrixGrid');
+  grid.innerHTML = '';
+
+  // CSS grid: N coef cols + separator + 1 b col
+  const cols = N + 2; // coefs + sep + b
+  grid.style.gridTemplateColumns = `repeat(${N}, 1fr) 16px 56px`;
+
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N; j++) {
+      const wrap = document.createElement('div');
+      wrap.className = 'cell-wrap';
+      const lbl = document.createElement('span');
+      lbl.className = 'cell-label';
+      lbl.id = `lbl_${i}_${j}`;
+      lbl.textContent = varNames[j] || `x${j+1}`;
+      const inp = document.createElement('input');
+      inp.className = 'cell';
+      inp.id = `c_${i}_${j}`;
+      inp.type = 'text';
+      inp.inputMode = 'decimal';
+      inp.autocomplete = 'off';
+      inp.autocorrect = 'off';
+      inp.spellcheck = false;
+      inp.value = prefill ? prefill[i][j] : '';
+      inp.placeholder = '0';
+      inp.addEventListener('keydown', cellNav);
+      wrap.appendChild(lbl);
+      wrap.appendChild(inp);
+      grid.appendChild(wrap);
+    }
+
+    // Separador
+    const sep = document.createElement('div');
+    sep.className = 'sep-col';
+    sep.textContent = '|';
+    grid.appendChild(sep);
+
+    // Columna b
+    const bwrap = document.createElement('div');
+    bwrap.className = 'cell-wrap';
+    const blbl = document.createElement('span');
+    blbl.className = 'cell-label';
+    blbl.id = `lbl_${i}_${N}`;
+    blbl.textContent = `b${subscript(i+1)}`;
+    const binp = document.createElement('input');
+    binp.className = 'cell b-col';
+    binp.id = `c_${i}_${N}`;
+    binp.type = 'text';
+    binp.inputMode = 'decimal';
+    binp.autocomplete = 'off';
+    binp.autocorrect = 'off';
+    binp.spellcheck = false;
+    binp.value = prefill ? prefill[i][N] : '';
+    binp.placeholder = '0';
+    binp.addEventListener('keydown', cellNav);
+    bwrap.appendChild(blbl);
+    bwrap.appendChild(binp);
+    grid.appendChild(bwrap);
+  }
+}
+
+function cellNav(e) {
+  if (e.key !== 'Tab' && e.key !== 'Enter') return;
+  e.preventDefault();
+  const [, ri, ci] = e.target.id.split('_').map(Number);
+  let ni = ri, nj = ci + 1;
+  if (nj > N) { nj = 0; ni = ri + 1; }
+  if (ni >= N) { $('btnSolve').focus(); return; }
+  const next = document.getElementById(`c_${ni}_${nj}`);
+  if (next) next.focus();
+}
+
+function readMatrix() {
+  const mat = [];
+  for (let i = 0; i < N; i++) {
+    const row = [];
+    for (let j = 0; j <= N; j++) {
+      row.push(document.getElementById(`c_${i}_${j}`).value.trim() || '0');
+    }
+    mat.push(row);
+  }
+  return mat;
+}
+
+function getVarName(i) {
+  return document.getElementById(`var${i}`)?.value.trim() || `x${i+1}`;
+}
+
+// ── Render resultados ────────────────────────────────────
+function renderResults(data) {
+  const results = $('results');
+  const badge   = $('resultBadge');
+  const cards   = $('solutionCards');
+  const steps   = $('stepsList');
+
+  if (!data.es_unica) {
+    badge.className = 'result-badge badge-err';
+    badge.textContent = '✕  ' + data.tipo;
+    cards.innerHTML = '';
+    steps.innerHTML = '';
+    results.classList.add('visible');
+    renderSteps(data.pasos, steps);
+    return;
+  }
+
+  badge.className = 'result-badge badge-ok';
+  badge.textContent = '✓  Solución única';
+
+  cards.innerHTML = '';
+  cards.style.gridTemplateColumns = N <= 3 ? '1fr 1fr' : '1fr 1fr';
+
+  data.solucion.forEach((sol, i) => {
+    const name = getVarName(i);
+    const card = document.createElement('div');
+    card.className = 'sol-card';
+    card.innerHTML = `
+      <div class="var-name">${name}</div>
+      <div class="frac">${sol.fraccion}</div>
+      <div class="dec">≈ ${sol.decimal} A</div>
+    `;
+    cards.appendChild(card);
+  });
+
+  renderSteps(data.pasos, steps);
+  results.classList.add('visible');
+  results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderSteps(pasos, container) {
+  container.innerHTML = '';
+  pasos.forEach(paso => {
+    const card = document.createElement('div');
+    card.className = 'step-card';
+
+    const head = document.createElement('div');
+    head.className = 'step-head';
+    head.innerHTML = `<span class="step-title">${paso.titulo}</span>`;
+    if (paso.operacion) {
+      const op = document.createElement('span');
+      op.className = 'step-op';
+      op.textContent = paso.operacion;
+      head.appendChild(op);
+    }
+
+    const matWrap = document.createElement('div');
+    matWrap.className = 'step-matrix';
+    const table = document.createElement('table');
+    const n = paso.matriz[0].length - 1;
+    paso.matriz.forEach(row => {
+      const tr = document.createElement('tr');
+      row.forEach((val, j) => {
+        if (j === n - 1) {
+          // Añadir separador antes de última columna
+          const sep = document.createElement('td');
+          sep.className = 'sep';
+          sep.textContent = '|';
+          tr.appendChild(sep);
+        }
+        const td = document.createElement('td');
+        td.textContent = val;
+        if (j === n) td.className = 'b-val';
+        tr.appendChild(td);
+      });
+      table.appendChild(tr);
+    });
+    matWrap.appendChild(table);
+
+    card.appendChild(head);
+    card.appendChild(matWrap);
+    container.appendChild(card);
+  });
+}
+
+// ── Eventos ──────────────────────────────────────────────
+$('sizeRow').querySelectorAll('.size-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $('sizeRow').querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    N = parseInt(btn.dataset.n);
+    buildVarRow();
+    buildMatrix();
+    $('results').classList.remove('visible');
+    $('errorBox').classList.remove('visible');
+  });
+});
+
+$('btnExample').addEventListener('click', () => {
+  const ex = EXAMPLES[N];
+  if (!ex) return;
+  // Poner nombres de variables
+  ex.vars.forEach((name, i) => {
+    const inp = document.getElementById(`var${i}`);
+    if (inp) { inp.value = name; varNames[i] = name; }
+  });
+  buildMatrix(ex.matrix);
+  updateCellLabels();
+  $('results').classList.remove('visible');
+  $('errorBox').classList.remove('visible');
+});
+
+$('btnSolve').addEventListener('click', async () => {
+  $('errorBox').classList.remove('visible');
+  $('results').classList.remove('visible');
+  $('loading').classList.add('visible');
+
+  const matrix = readMatrix();
+
+  try {
+    const res = await fetch('/solve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ n: N, matrix }),
+    });
+    const data = await res.json();
+    $('loading').classList.remove('visible');
+
+    if (data.error) {
+      $('errorBox').textContent = '⚠ ' + data.error;
+      $('errorBox').classList.add('visible');
+      return;
+    }
+    renderResults(data);
+  } catch (err) {
+    $('loading').classList.remove('visible');
+    $('errorBox').textContent = '⚠ Error de conexión. Verifica tu red.';
+    $('errorBox').classList.add('visible');
+  }
+});
+
+$('stepsToggle').addEventListener('click', () => {
+  const toggle = $('stepsToggle');
+  const list   = $('stepsList');
+  toggle.classList.toggle('open');
+  list.classList.toggle('open');
+});
+
+// ── Init ─────────────────────────────────────────────────
+buildVarRow();
+buildMatrix();
+</script>
+
+</body>
+</html>
