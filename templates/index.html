@@ -712,7 +712,7 @@ function renderSteps(pasos, container) {
     paso.matriz.forEach(row => {
       const tr = document.createElement('tr');
       row.forEach((val, j) => {
-        if (j === n - 1) {
+        if (j === n) {
           // Añadir separador antes de última columna
           const sep = document.createElement('td');
           sep.className = 'sep';
